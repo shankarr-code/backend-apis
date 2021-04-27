@@ -16,6 +16,11 @@ import helper
 import policy_manager as plcymgr
 from partition_approaches import PartitionApproach
 
+import json
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 
 def put_object(event, context):
     """
@@ -26,6 +31,7 @@ def put_object(event, context):
                  400 - Bad Request, 401 - Unauthorized
                  500 - Error, 503 - Unavailable
     """
+    logger.info("apis(put_object): event --> %s", json.dumps(event))
     try:
         partition_approach = validate_request(event)
         if isinstance(partition_approach, dict) and \
@@ -42,7 +48,9 @@ def put_object(event, context):
 
         policy_template = helper.get_policy_template(partition_approach.value)
         assume_role_policy = plcymgr.get_policy(policy_template, req_header)
+        logger.info("Policy template --> %s", policy_template)
         sts_creds = helper.get_assumed_role_creds("s3", assume_role_policy)
+        logger.info("Assumed Policy --> %s", json.dumps(assume_role_policy))
 
         rtm_method_put = getattr(rtm_module, "put_object")
         return rtm_method_put(sts_creds, req_header)
@@ -60,6 +68,7 @@ def get_object(event, context):
                  400 - Bad Request, 401 - Unauthorized
                  500 - Error, 503 - Unavailable
     """
+    logger.info("apis(get_object): event --> %s", json.dumps(event))
     try:
         partition_approach = validate_request(event)
         if isinstance(partition_approach, dict) and \
@@ -75,6 +84,8 @@ def get_object(event, context):
 
         policy_template = helper.get_policy_template(partition_approach.value)
         assume_role_policy = plcymgr.get_policy(policy_template, req_header)
+        logger.info("assumed_role policy --> %s", json.dumps(assume_role_policy))
+        logger.info(json.dumps(assume_role_policy))
         sts_creds = helper.get_assumed_role_creds("s3", assume_role_policy)
 
         rtm_method_get = getattr(rtm_module, "get_object")

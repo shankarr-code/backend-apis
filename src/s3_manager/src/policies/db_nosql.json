@@ -36,13 +36,15 @@
         "s3:GetObject"
       ],
       "Resource": [
-        "{bucket_arn}/*"
+        "{bucket_arn}/{tenant_id}/*",
+        "{bucket_arn}/{tenant_id}/{user_id}/*"
       ]
     },
     {
       "Effect": "Allow",
       "Action": [
-        "s3:PutObject"
+        "s3:PutObject",
+        "s3:PutObjectTagging"
       ],
       "Resource": [
         "{bucket_arn}/{tenant_id}/{user_id}/*"
@@ -76,14 +78,7 @@
         "ForAllValues:StringEquals": {
           "dynamodb:LeadingKeys": [
             "{nosql_partition_key}"
-          ],
-          "dynamodb:Attributes": [
-            "id_concat",
-            "key_name"
           ]
-        },
-        "StringEqualsIfExists": {
-          "dynamodb:Select": "SPECIFIC_ATTRIBUTES"
         }
       }
     }

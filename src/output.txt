@@ -1,0 +1,1 @@
+APIGTW_BASE_URL: https://rcm4f2e5u7.execute-api.us-east-1.amazonaws.com/dev

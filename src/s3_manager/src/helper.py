@@ -17,10 +17,15 @@ from os.path import dirname, join
 
 import boto3
 import botocore
+from botocore.client import Config
+import json
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 import token_manager as tkmgr
 
-X_TOKEN = "x-token"
+X_TOKEN = "x-amz-security-token"
 X_TENANT_ID = "x-tenant-id"
 X_USER_ID = "x-user-id"
 
@@ -45,9 +50,16 @@ def get_tenant_context(event):
 
     if event.get("body"):
         body_json = json.loads(event.get("body").replace("'", "\""))
-        req_header["object_key"] = body_json.get("key", "")
-        req_header["object_value"] = body_json.get("value", "")
+        logger.info("helper.get_tenant_context: body_json --> %s", json.dumps(body_json))
+        req_header["object_key"] = body_json.get("image", "")
+        req_header["object_value"] = body_json
+        req_header["obj_id"] = body_json.get("id", "")
+        req_header["obj_name"] = body_json.get("name", "")
+        req_header["obj_description"] = body_json.get("description", "")
+        req_header["obj_location"] = body_json.get("location", "")
+        req_header["obj_imagename"] = body_json.get("imageName", "")
 
+    logger.info("helper.get_tenant_context: req header --> %s", req_header)
     return req_header
 
 
@@ -77,6 +89,7 @@ def get_assumed_role_creds(service_name, assume_role_policy):
         Policy=json.dumps(assume_role_policy),
     )
     credentials = assumed_role["Credentials"]
+    logger.info("helper.get_assumed_role_creds: assumed_role --> %s", assumed_role)
 
     return credentials
 
@@ -93,6 +106,22 @@ def get_boto3_client(service_name, sts_creds):
         aws_secret_access_key=sts_creds["SecretAccessKey"],
         aws_session_token=sts_creds["SessionToken"],
     )
+
+def get_boto3_client_s3(service_name, sts_creds):
+    """
+    Returns a new client based on STS credentials
+        :param service_name:
+        :param sts_creds:
+    """
+    my_config = Config(
+    region_name = os.environ["AWS_REGION"],
+    signature_version = 's3v4')
+    return boto3.client(
+        "s3",
+        aws_access_key_id=sts_creds["AccessKeyId"],
+        aws_secret_access_key=sts_creds["SecretAccessKey"],
+        aws_session_token=sts_creds["SessionToken"],
+        config=my_config)
 
 
 def get_token(event, context):
@@ -202,8 +231,9 @@ def create_response(api_resp, http_status, message=None):
         "statusCode": http_status.value,
         "headers": {
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type",
-            "Access-Control-Allow-Credentials": True
+            "Access-Control-Allow-Headers": "Content-Type,X-Amz-Security-Token",
+            "Access-Control-Allow-Credentials": True,
+            "Access-Control-Allow-Methods": "OPTIONS,POST,GET,PUT"
         },
         "body": json.dumps({
             "status": http_status.phrase,
@@ -215,6 +245,8 @@ def create_response(api_resp, http_status, message=None):
         response["body"] = json.dumps({
             "message": message
         })
+
+    logger.info("helper(create_response): Response obj --> %s", json.dumps(response))
 
     return response
 
