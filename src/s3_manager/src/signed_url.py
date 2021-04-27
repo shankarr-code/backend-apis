@@ -36,7 +36,7 @@ def get_signed_url(event, context):
     req_header = helper.get_tenant_context(event)
     if "missing_fields" in req_header:
         return req_header
-    bucket_name = bucket_name = "{0}-{1}".format(constants.BUCKET_NAME_NSDB, os.environ["AWS_ACCOUNT_ID"])
+    bucket_name = "{0}-{1}".format(constants.BUCKET_NAME_NSDB, os.environ["AWS_ACCOUNT_ID"])
     file_name = '{0}/{1}/{2}'.format(req_header['tenant_id'], req_header['user_id'], key_name)
     
     req_header.update({
