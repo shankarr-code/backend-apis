@@ -36,7 +36,7 @@ def get_signed_url(event, context):
     req_header = helper.get_tenant_context(event)
     if "missing_fields" in req_header:
         return req_header
-    bucket_name = "{0}-{1}".format(constants.BUCKET_NAME_NSDB, os.environ["AWS_ACCOUNT_ID"])
+    bucket_name = "{0}-{1}".format(req_header['tenant_id'].lower(), os.environ["AWS_ACCOUNT_ID"])
     file_name = '{0}/{1}/{2}'.format(req_header['tenant_id'], req_header['user_id'], key_name)
     
     req_header.update({
@@ -53,6 +53,7 @@ def get_signed_url(event, context):
     #logger.info("Policy template --> %", policy_template)
     sts_creds = helper.get_assumed_role_creds("s3", assume_role_policy)
     s3_client = helper.get_boto3_client("s3", sts_creds)
+    cw_client = helper.get_boto3_client("cloudwatch", sts_creds)
     
     
     if action_type == "get_url":
@@ -70,6 +71,22 @@ def get_signed_url(event, context):
         1. Generate pre-signed URL for downloading file
         2. Use POST method while uploading file using Pre-Signed URL
         """
+        cw_client.put_metric_data(
+        MetricData=[
+            {
+                'MetricName': 'FUNCTION_CALLED',
+                'Dimensions': [
+                    {
+                        'Name': 'SIGNED_PUT',
+                        'Value': req_header["tenant_id"]
+                    },
+                ],
+                'Unit': 'None',
+                'Value': 1
+            },
+        ],
+        Namespace='OCTANKVIEW/TRAFFIC'
+        )
         URL = s3_client.generate_presigned_url("put_object", Params = {"Bucket": bucket_name, "Key": file_name, "ContentType": content },  ExpiresIn=3600)
         #URL = s3_client.generate_presigned_post(Bucket=bucket_name, Key=file_name, Fields=None, Conditions=None, ExpiresIn=3600)
         logger.info("get_signed_url: post signed url --> %s ", URL)
@@ -81,8 +98,28 @@ def get_signed_url(event, context):
         user_objects = db_resp['Items']
 
     if action_type == "get_url_cf":
+        cw_client.put_metric_data(
+        MetricData=[
+            {
+                'MetricName': 'FUNCTION_CALLED',
+                'Dimensions': [
+                    {
+                        'Name': 'SIGNED_GET',
+                        'Value': req_header["tenant_id"]
+                    },
+                ],
+                'Unit': 'None',
+                'Value': 1
+            },
+        ],
+        Namespace='OCTANKVIEW/TRAFFIC'
+        )
         key_id = 'KXHVAY69A33US'
-        url = 'http://d2aihwjk7j4ii2.cloudfront.net/'+ key_name
+        #url = 'http://d2aihwjk7j4ii2.cloudfront.net/'+ key_name
+        if req_header["tenant_id"] == "tenantA":
+            url = 'http://d2xswc64piohcl.cloudfront.net/'+ key_name
+        if req_header["tenant_id"] == "tenantB":
+            url = 'http://d3fy5jj2zxo1s2.cloudfront.net/'+ key_name
         current_time = datetime.datetime.utcnow()
         expire_date = current_time + datetime.timedelta(minutes = 5)
         cloudfront_signer = CloudFrontSigner(key_id, rsa_signer)

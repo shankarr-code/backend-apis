@@ -40,6 +40,24 @@ def put_object(sts_creds, req_header):
                  500 - Error, 503 - Unavailable
     """
     logging.info("db_nosql.put_object: req_header --> %s", req_header)
+    cw_client = helper.get_boto3_client("cloudwatch", sts_creds)
+    # PUT custom metric
+    cw_client.put_metric_data(
+        MetricData=[
+            {
+                'MetricName': 'FUNCTION_CALLED',
+                'Dimensions': [
+                    {
+                        'Name': 'DDB_PUT',
+                        'Value': req_header["tenant_id"]
+                    },
+                ],
+                'Unit': 'None',
+                'Value': 1
+            },
+        ],
+        Namespace='OCTANKVIEW/TRAFFIC'
+    )
     try:
         s3_client = helper.get_boto3_client("s3", sts_creds)
         helper.check_create_bucket(s3_client, req_header["bucket_name"])
@@ -87,6 +105,24 @@ def get_object(sts_creds, req_header):
                  400 - Bad Request, 401 - Unauthorized
                  500 - Error, 503 - Unavailable
     """
+    cw_client = helper.get_boto3_client("cloudwatch", sts_creds)
+    # PUT custom metric
+    cw_client.put_metric_data(
+        MetricData=[
+            {
+                'MetricName': 'FUNCTION_CALLED',
+                'Dimensions': [
+                    {
+                        'Name': 'DDB_GET',
+                        'Value': req_header["tenant_id"]
+                    },
+                ],
+                'Unit': 'None',
+                'Value': 1
+            },
+        ],
+        Namespace='OCTANKVIEW/TRAFFIC'
+    )
     try:
         ddb_client = helper.get_boto3_client("dynamodb", sts_creds)
         logger.info("db_nosql(get_object): Request header --> %s ", req_header)
@@ -160,7 +196,7 @@ def populate_context(event):
     if "missing_fields" in req_header:
         return req_header
 
-    bucket_name = "{0}-{1}".format(constants.BUCKET_NAME_NSDB,
+    bucket_name = "{0}-{1}".format(req_header['tenant_id'].lower(),
                                    os.environ["AWS_ACCOUNT_ID"])
 
     key_name = '{0}/{1}/{2}'.format(req_header['tenant_id'],
